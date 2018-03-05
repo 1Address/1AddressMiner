@@ -1,6 +1,21 @@
 // @flow
 'use strict';
 
+//
+// [ ROPSTEN ]
+//
+// EC:
+//   - 0xe2Ceefb2b9010864F9B103D78dc5EaC3D32c64b0
+// TOKEN:
+//   - 0x2d911ad950193d81b89cc14480e7EFA9ae6e23f7
+// CONTRACT:
+//   - 0x16b0e794fEb8C4008C62269134908b12C6Ed5750
+//   - 0xb6c624586F49b2BAcb7A340D55EFa1D83669D0c5
+//   - 0xf97D03e4f8Bf12B1040C4b26d57E18777Aa789B6
+//   - 0x0A61e886822f46b4ca9C765c9b984a25a5DC4b9a
+//   - 0x0ffe0a4E2b867A0A9297Ff69d33ECa1a4D13400a
+//
+
 // Every miner will change
 const minerPrivateKey = '***';
 const vanitygenDir = '../vanitygen-plus';

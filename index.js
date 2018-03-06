@@ -20,7 +20,7 @@
 const minerPrivateKey = '***';
 const vanitygenDir = '../vanitygen-plus';
 const vanitygenCmd = './oclvanitygen -d 2';
-const gasPrice = 4 * 10**9; // 4 Gwei
+const gasPrice = 4e9; // 4 Gwei
 
 // Some miners will change
 const nodeUrl = 'wss://ropsten.infura.io/ws';
@@ -57,14 +57,27 @@ process.on('unhandledRejection', (reason, p) => {
     // application specific logging, throwing an error, or other logic here
 });
 
-(async function() {
+let web3;
+let app;
+
+setInterval(function() { 
+    web3.eth.net.isListening()
+    .then().catch(e => { 
+        console.log('[ - ] Lost connection to the node, reconnecting'); 
+        web3.setProvider(config.infura_ws); 
+        app();
+        // this just subscribes to newBlockHeaders event 
+    })
+}, 1000);
+
+(app = async function() {
     // Accessing contract
-    const web3 = new Web3(nodeUrl.startsWith('ws') ? new Web3.providers.WebsocketProvider(nodeUrl) : new Web3.providers.HttpProvider(nodeUrl));
+    web3 = new Web3(nodeUrl.startsWith('ws') ? new Web3.providers.WebsocketProvider(nodeUrl) : new Web3.providers.HttpProvider(nodeUrl));
     if (contractAddress.length != 42) {
         console.log('contractAddress should be of length 42' + (contractAddress.length == 40 ? ' Prepend with "0x".' : ''));
         return;
     }
-    var contract = new web3.eth.Contract(abi, contractAddress);
+    let contract = new web3.eth.Contract(abi, contractAddress);
 
     // Accessing account
     if (minerPrivateKey.length != 66) {
@@ -75,17 +88,17 @@ process.on('unhandledRejection', (reason, p) => {
     web3.eth.defaultAccount = minerAccount.address;
     console.log('Using account ' + minerAccount.address);
 
-    var nonce = await web3.eth.getTransactionCount(minerAccount.address);
+    let nonce = await web3.eth.getTransactionCount(minerAccount.address);
     console.log('Nonce = ' + nonce);
 
-    var proc = null;
-    var subscription = null;
-    var transactionPromise = null;
+    let proc = null;
+    let subscription = null;
+    let transactionPromise = null;
 
     while (true) {
 
         // Move to the latest contract
-        var nextVersion = 0;
+        let nextVersion = 0;
         while ((nextVersion = (await contract.methods.upgradableState().call()).nextVersion) != 0) {
             contract = new web3.eth.Contract(abi, nextVersion);
             console.log('Upgraded contract to next version: ' + contract.options.address);
@@ -116,14 +129,16 @@ process.on('unhandledRejection', (reason, p) => {
             if (!error) {
                 console.log(result);
             }
-            proc.kill('SIGINT');
+            if (proc) {
+                proc.kill('SIGINT');
+            }
         });
 
         // Get all tasks
         const tasksCount = await contract.methods.tasksCount().call();
         console.log('Found ' + tasksCount + ' tasks:');
         const tasks = [];
-        for (var i = 0; i < tasksCount; i++) {
+        for (let i = 0; i < tasksCount; i++) {
             const task = await contract.methods.tasks(i).call();
             task.difficulty = await contract.methods.complexityForBtcAddressPrefixWithLength(task.data, task.dataLength).call();
             task.prefix = web3.utils.hexToAscii(task.data);
@@ -157,7 +172,7 @@ process.on('unhandledRejection', (reason, p) => {
             const taskIndex = await contract.methods.indexOfTaskId(task.taskId).call();
             if (taskIndex != 0) {
                 const data = contract.methods.solveTask(task.taskId, privkeyPartHex).encodeABI();
-                var options = {
+                let options = {
                     from: minerAccount.address,
                     to: contract.options.address,
                     data: data,
@@ -165,9 +180,9 @@ process.on('unhandledRejection', (reason, p) => {
                     gasPrice: gasPrice,
                     nonce: nonce
                 };
-                var tx = new Tx(options);
+                let tx = new Tx(options);
                 tx.sign(new Buffer(minerPrivateKey.substr(2), 'hex'));
-                var serializedTx = tx.serialize();
+                let serializedTx = tx.serialize();
 
                 web3.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
                     .on('transactionHash', function(hash) {
@@ -189,6 +204,7 @@ process.on('unhandledRejection', (reason, p) => {
 
         // Await process termination
         await new Promise(done => proc.on('close', async function(code) {
+            proc = null;
             if (code == 0) {
                 await transactionPromise;
             }

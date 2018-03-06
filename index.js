@@ -123,6 +123,7 @@ setInterval(function() {
             topics: [
                 web3.utils.sha3('TaskCreated(uint256)'),
                 web3.utils.sha3('TaskSolved(uint256)'),
+                web3.utils.sha3('TaskPayed(uint256)'),
                 web3.utils.sha3('Upgraded(address)'),
             ]
         }, function(error, result) {

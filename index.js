@@ -146,10 +146,10 @@ setInterval(function() {
             tasks.push(task);
             console.log('Task #' + i + ': ' + web3.utils.toAscii(task.data) + ' (' +
                         task.reward/10**18 + ' VIP, ' +
-                        task.difficulty/10**6 + ' MH, ' +
-                        task.reward/task.difficulty/10**12 + ' VIP/MH)');
+                        task.difficulty/10**9 + ' GH, ' +
+                        task.reward/task.difficulty/10**9 + ' VIP/GH)');
         }
-        tasks.sort(function(a, b){ a.reward/a.difficulty - b.reward/b.difficulty });
+        tasks.sort((b,a) => a.reward / a.difficulty - b.reward / b.difficulty);
 
         if (tasks.length == 0) {
             await new Promise(done => setTimeout(done, 5000));

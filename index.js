@@ -137,18 +137,20 @@ setInterval(function() {
 
         // Get all tasks
         const tasksCount = await contract.methods.tasksCount().call();
-        console.log('Found ' + tasksCount + ' tasks:');
-        const tasks = [];
+        console.log('Fetching ' + tasksCount + ' active tasks...');
+        let promises = [];
         for (let i = 0; i < tasksCount; i++) {
-            const task = await contract.methods.tasks(i).call();
-            task.difficulty = await contract.methods.complexityForBtcAddressPrefixWithLength(task.data, task.dataLength).call();
-            task.prefix = web3.utils.hexToAscii(task.data);
-            tasks.push(task);
-            console.log('Task #' + i + ': ' + web3.utils.toAscii(task.data) + ' (' +
+            promises.push(contract.methods.tasks(i).call().then(async function(task) {
+                task.difficulty = await contract.methods.complexityForBtcAddressPrefixWithLength(task.data, task.dataLength).call();
+                task.prefix = web3.utils.hexToAscii(task.data);
+                console.log('Task #' + i + ': ' + web3.utils.toAscii(task.data) + ' (' +
                         task.reward/10**18 + ' VIP, ' +
                         task.difficulty/10**9 + ' GH, ' +
                         task.reward/task.difficulty/10**9 + ' VIP/GH)');
+                return task;
+            }));
         }
+        const tasks = await Promise.all(promises);
         tasks.sort((b,a) => a.reward / a.difficulty - b.reward / b.difficulty);
 
         if (tasks.length == 0) {

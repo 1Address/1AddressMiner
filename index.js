@@ -52,23 +52,19 @@ a7459afcefe4a4d355309788396eb13cb79137f80527a03b5caad8c503c85dfb
 4b472ef03622f504f907c5c42bd1549fe895e1d0bbbd6a2d0ca6fd72fdc25500
 */
 
-process.on('unhandledRejection', (reason, p) => {
-    console.log('Unhandled Rejection at: Promise', p, '\nreason:', reason, '\nstack:', reason.stack);
-    // application specific logging, throwing an error, or other logic here
-});
-
 let web3;
 let app;
+let proc = null;
 
-setInterval(function() { 
-    web3.eth.net.isListening()
-    .then().catch(e => { 
-        console.log('[ - ] Lost connection to the node, reconnecting'); 
-        web3.setProvider(config.infura_ws); 
-        app();
-        // this just subscribes to newBlockHeaders event 
-    })
-}, 1000);
+process.on('unhandledRejection', async function(reason, p) {
+    console.log('Unhandled Rejection at: Promise', p, '\nreason:', reason, '\nstack:', reason.stack);
+    if (proc) {
+        proc.kill('SIGINT');
+        proc = null;
+    }
+    web3.setProvider(nodeUrl.startsWith('ws') ? new Web3.providers.WebsocketProvider(nodeUrl) : new Web3.providers.HttpProvider(nodeUrl));
+    await app();
+});
 
 (app = async function() {
     // Accessing contract
@@ -91,20 +87,24 @@ setInterval(function() {
     let nonce = await web3.eth.getTransactionCount(minerAccount.address);
     console.log('Nonce = ' + nonce);
 
-    let proc = null;
     let subscription = null;
     let transactionPromise = null;
 
     while (true) {
-
         // Move to the latest contract
         let nextVersion = 0;
         while ((nextVersion = (await contract.methods.upgradableState().call()).nextVersion) != 0) {
             contract = new web3.eth.Contract(abi, nextVersion);
+            if (proc) {
+                return;
+            }
             console.log('Upgraded contract to next version: ' + contract.options.address);
         }
 
         if ((await contract.methods.upgradableState().call()).isUpgrading) {
+            if (proc) {
+                return;
+            }
             console.log('Waiting until contract upgrade finished');
             await new Promise(done => setTimeout(done, 5000));
             continue;
@@ -119,7 +119,7 @@ setInterval(function() {
             });
         }
         subscription = web3.eth.subscribe('logs', {
-            address: contract.address,
+            address: contract.options.address,
             topics: [
                 web3.utils.sha3('TaskCreated(uint256)'),
                 web3.utils.sha3('TaskSolved(uint256)'),
@@ -127,9 +127,12 @@ setInterval(function() {
                 web3.utils.sha3('Upgraded(address)'),
             ]
         }, function(error, result) {
-            if (!error) {
-                console.log(result);
+            if (error) {
+                console.log('Error: ' + error);
+            } else {
+                console.log('Subscription: ' + result);
             }
+
             if (proc) {
                 proc.kill('SIGINT');
             }
@@ -147,6 +150,9 @@ setInterval(function() {
             }));
         }
         const tasks = await Promise.all(promises);
+        if (proc) {
+            return;
+        }
         tasks.sort((b,a) => a.reward / a.difficulty - b.reward / b.difficulty);
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
@@ -161,8 +167,12 @@ setInterval(function() {
             continue;
         }
 
+        if (proc) {
+            return;
+        }
+
         const task = tasks[0];
-        const publicKey = `04${web3.utils.toHex(task.requestPublicXPoint).substr(2)}${web3.utils.toHex(task.requestPublicYPoint).substr(2)}`;
+        const publicKey = `04${web3.utils.padLeft(web3.utils.toHex(task.requestPublicXPoint).substr(2),64)}${web3.utils.padLeft(web3.utils.toHex(task.requestPublicYPoint).substr(2),64)}`;
         const cmd = `${vanitygenCmd} -P ${publicKey} -Z ${minerAccount.address.substr(2,32)} ${task.prefix}`;
         console.log(cmd);
         transactionPromise = new Promise(resolve => proc = exec(cmd, {cwd: vanitygenDir, detached: true}, async function(e, stdout, stderr) {

@@ -199,7 +199,9 @@ process.on('unhandledRejection', async function(reason, p) {
                 throw e;
             }
 
-            const privkeyPart = stdout.split('\n').find(line => line.startsWith('PrivkeyPart:')).split(' ')[1];
+            const privkeyPart = stdout.split(require('os').EOL)
+                                      .find(line => line.startsWith('PrivkeyPart:'))
+                                      .split(' ')[1];
             const privkeyPartHex = bs58.decode(privkeyPart).toString('hex').substr(2,64);
             console.log(`Found solution ${privkeyPartHex} for taskId = ${task.taskId}`);
 

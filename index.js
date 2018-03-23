@@ -163,7 +163,7 @@ process.on('unhandledRejection', async function(reason, p) {
         for (let i = 0; i < tasksCount; i++) {
             promises.push(contract.methods.tasks(i).call().then(async function(task) {
                 task.difficulty = await contract.methods.complexityForBtcAddressPrefixWithLength(task.data, task.dataLength).call();
-                task.prefix = web3.utils.hexToAscii(task.data);
+                task.prefix = web3.utils.hexToAscii(task.data).trimRight();
                 return task;
             }));
         }

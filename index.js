@@ -73,6 +73,8 @@ a7459afcefe4a4d355309788396eb13cb79137f80527a03b5caad8c503c85dfb
 let web3;
 let app;
 let proc = null;
+let foundTask;
+let foundPrivkeyPartHex;
 
 process.on('unhandledRejection', async function(reason, p) {
     console.log('Unhandled Rejection at: Promise', p, '\nreason:', reason, '\nstack:', reason.stack);
@@ -108,6 +110,50 @@ process.on('unhandledRejection', async function(reason, p) {
     let subscription = null;
     let transactionPromise = null;
 
+    async function submitSolution() {
+        const taskIndex = await contract.methods.indexOfTaskId(foundTask.taskId).call();
+        if (taskIndex == 0) {
+            console.log('Task #' + foundTask.taskId + ' was already solved by someone');
+            foundTask = null;
+            foundPrivkeyPartHex = null;
+            return;
+        }
+
+        console.log(`Submitting solution ${foundPrivkeyPartHex} for taskId = ${foundTask.taskId}`);
+        const data = contract.methods.solveTask(foundTask.taskId, foundPrivkeyPartHex).encodeABI();
+        const estimateGas = await contract.methods.solveTask(foundTask.taskId, foundPrivkeyPartHex).estimateGas({from: minerAccount.address});
+        let options = {
+            from: minerAccount.address,
+            to: contract.options.address,
+            data: data,
+            gas: estimateGas,
+            gasPrice: gasPrice,
+            nonce: nonce
+        };
+        let tx = new Tx(options);
+        tx.sign(new Buffer(minerPrivateKey.substr(2), 'hex'));
+        let serializedTx = tx.serialize();
+
+        let resolve;
+        const promise = new Promise(done => resolve = done);
+        await web3.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
+            .on('transactionHash', function(hash) {
+                console.log(`Sending transaction ${explorerUrl}${hash}`);
+            })
+            .on('error', function(error) {
+                console.error(error);
+                resolve();
+            })
+            .then(function(receipt) {
+                console.log(`Transaction was mined.`);
+                foundTask = null;
+                foundPrivkeyPartHex = null;
+                nonce++;
+                resolve();
+            });
+        await promise;
+    }
+
     while (true) {
         // Move to the latest contract
         let nextVersion = 0;
@@ -126,6 +172,13 @@ process.on('unhandledRejection', async function(reason, p) {
             console.log('Waiting until contract upgrade finished');
             await new Promise(done => setTimeout(done, 5000));
             continue;
+        }
+
+        if (foundTask) {
+            await submitSolution();
+        }
+        if (proc) {
+            return;
         }
 
         // Resubscribe
@@ -163,7 +216,7 @@ process.on('unhandledRejection', async function(reason, p) {
         for (let i = 0; i < tasksCount; i++) {
             promises.push(contract.methods.tasks(i).call().then(async function(task) {
                 task.difficulty = await contract.methods.complexityForBtcAddressPrefixWithLength(task.data, task.dataLength).call();
-                task.prefix = web3.utils.hexToAscii(task.data).trimRight();
+                task.prefix = web3.utils.hexToAscii(task.data).substr(0, task.dataLength);
                 return task;
             }));
         }
@@ -174,7 +227,7 @@ process.on('unhandledRejection', async function(reason, p) {
         tasks.sort((b,a) => a.reward / a.difficulty - b.reward / b.difficulty);
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
-            console.log('Task #' + i + ': ' + web3.utils.toAscii(task.data) + ' (' +
+            console.log('Task #' + task.taskId + ': ' + web3.utils.toAscii(task.data) + ' (' +
                     task.reward/10**18 + ' VIP, ' +
                     task.difficulty/10**9 + ' GH, ' +
                     task.reward/task.difficulty/10**9 + ' VIP/GH)');
@@ -205,39 +258,10 @@ process.on('unhandledRejection', async function(reason, p) {
             const privkeyPartHex = bs58.decode(privkeyPart).toString('hex').substr(2,64);
             console.log(`Found solution ${privkeyPartHex} for taskId = ${task.taskId}`);
 
-            const taskIndex = await contract.methods.indexOfTaskId(task.taskId).call();
-            if (taskIndex != 0) {
-                const data = contract.methods.solveTask(task.taskId, privkeyPartHex).encodeABI();
-                const estimateGas = await contract.methods.solveTask(task.taskId, privkeyPartHex).estimateGas({from: minerAccount.address});
-                let options = {
-                    from: minerAccount.address,
-                    to: contract.options.address,
-                    data: data,
-                    gas: estimateGas,
-                    gasPrice: gasPrice,
-                    nonce: nonce
-                };
-                let tx = new Tx(options);
-                tx.sign(new Buffer(minerPrivateKey.substr(2), 'hex'));
-                let serializedTx = tx.serialize();
-
-                web3.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
-                    .on('transactionHash', function(hash) {
-                        console.log(`Sending transaction ${explorerUrl}${hash}`);
-                    })
-                    .on('error', function(error) {
-                        console.error(error);
-                        resolve();
-                    })
-                    .then(function(receipt) {
-                        console.log(`Transaction was mined.`);
-                        nonce++;
-                        resolve();
-                    });
-            } else {
-                console.log('Task was already solved by someone');
-                resolve();
-            }
+            foundTask = task;
+            foundPrivkeyPartHex = privkeyPartHex;
+            await submitSolution();
+            resolve();
         }));
 
         // Await process termination

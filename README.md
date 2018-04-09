@@ -1,6 +1,6 @@
 # VipCoinMiner
 
-VipCo.in mining software
+https://vipco.in mining software
 
 # Usage
 

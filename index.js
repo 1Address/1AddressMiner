@@ -234,9 +234,9 @@ process.on('unhandledRejection', async function(reason, p) {
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
             console.log('Task #' + task.taskId + ': ' + web3.utils.toAscii(task.data) + ' (' +
-                    task.reward/10**18 + ' VIP, ' +
+                    task.reward/10**18 + ' ETH, ' +
                     task.difficulty/10**9 + ' GH, ' +
-                    task.reward/task.difficulty/10**9 + ' VIP/GH)');
+                    task.reward/task.difficulty/10**9 + ' ETH/GH)');
         }
 
         if (tasks.length == 0) {

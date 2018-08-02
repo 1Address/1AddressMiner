@@ -1,6 +1,6 @@
-# VipCoinMiner
+# 1AddressMiner
 
-https://vipco.in mining software
+https://1Address.io mining software
 
 # Usage
 

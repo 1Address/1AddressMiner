@@ -121,13 +121,13 @@ process.on('unhandledRejection', async function(reason, p) {
         }
 
         const privateKey = new bitcore.PrivateKey(foundPrivkeyPartHex);
-	    const publicKey = privateKey.toPublicKey();
-        const pubX = publicKey.point.x.toString(16, 64).toUpperCase();
-        const pubY = publicKey.point.y.toString(16, 64).toUpperCase();
+        const publicKey = privateKey.toPublicKey();
+        const pubX = '0x' + publicKey.point.x.toString(16, 64).toUpperCase();
+        const pubY = '0x' + publicKey.point.y.toString(16, 64).toUpperCase();
 
         console.log(`Submitting solution ${foundPrivkeyPartHex} for taskId = ${foundTask.taskId}`);
-        const data = contract.methods.solveTask(foundTask.taskId, foundPrivkeyPartHex, pubX, pubY).encodeABI();
-        const estimateGas = await contract.methods.solveTask(foundTask.taskId, foundPrivkeyPartHex, pubX, pubY).estimateGas({from: minerAccount.address});
+        const data = contract.methods.solveTask(foundTask.taskId, '0x' + foundPrivkeyPartHex, pubX, pubY).encodeABI();
+        const estimateGas = await contract.methods.solveTask(foundTask.taskId, '0x' + foundPrivkeyPartHex, pubX, pubY).estimateGas({from: minerAccount.address});
         let options = {
             from: minerAccount.address,
             to: contract.options.address,

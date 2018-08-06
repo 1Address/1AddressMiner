@@ -5,7 +5,7 @@
 const minerPrivateKey = '***';
 const vanitygenDir = '../vanitygen-plus';
 const vanitygenCmd = './oclvanitygen -d 2';
-const gasPrice = 1e9; // 1 Gwei
+const gasPrice = 2e9; // 2 Gwei
 
 // Some miners will change
 const args = process.argv.splice(process.execArgv.length + 2); // https://stackoverflow.com/a/5767589/440168
@@ -19,7 +19,7 @@ const explorerUrl = {
     'ropsten':'https://ropsten.etherscan.io/tx/',
 }[ethnet];
 const contractAddress = {
-    'mainnet':'0x37a857e007Ba6ae7862bC5Ab1104DD4396de7950',
+    'mainnet':'0x7a848abebea15a4bc2c27a40fa78f44c3daecd2c',
     'ropsten':'0x16b0e794fEb8C4008C62269134908b12C6Ed5750',
 }[ethnet];
 if (!contractAddress) {

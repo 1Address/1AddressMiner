@@ -9,7 +9,7 @@
 ``docker-compose up -d``
 
 ### Show logs 
-``docker-compose lgos -f``
+``docker-compose logs -f``
 
 ### Stop & kill
 ``docker-compose stop or docker-compose kill``

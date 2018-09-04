@@ -18,5 +18,5 @@
 
 * docker (https://docs.docker.com/install/linux/docker-ce/ubuntu/)
 * docker-compose (pip install docker-compose)
-* NVIDIA: nvidia-dorcker (https://github.com/NVIDIA/nvidia-docker)
+* NVIDIA: nvidia-docker (https://github.com/NVIDIA/nvidia-docker)
 * AMD: Rocm driver or latest pro driver (https://rocm.github.io/ROCmInstall.html)

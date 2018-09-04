@@ -1,0 +1,9 @@
+version: "3.7"
+services:
+  1address:
+    build: .
+    environment:
+      - ETH_PRIVATE_KEY=0x # your eth private key from wallet
+      - VANITYGEN_AGS=-D 0:0 -D 0:1 -D 0:2 # multi gpu
+      - RUNTIME=nvidia # nvidia or amd (mount devices required, see rocm)
+      - GAS_PRICE=2e9
